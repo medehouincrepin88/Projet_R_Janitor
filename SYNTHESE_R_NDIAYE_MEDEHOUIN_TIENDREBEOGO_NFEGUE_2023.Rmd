@@ -1,0 +1,786 @@
+---
+title: "Ecole nationale de la Statistique et de l'Analyse économique Pierre Ndiaye"
+author: "Jean Pierre A. NDIAYE - Stewart NFEGUE - P. TIENDREBEOGO - Crépin MEDEHOUIN"
+date: "Juillet 2023"
+output:
+  word_document: default
+  pdf_document: default
+subtitle: Synthèse des exposés de R
+ 
+---
+
+
+## *Introduction*
+
+R est un logiciel de traitement statistique très outillé. Nous avons eu l'opportunité de le découvrir grace aux exposés portant sur les thèmes: le package Janitor, le package gtsummary, RmarkDown, R Quarto, R vers Excel,Textmining, Résolution des systèmes d'équations non linéaires avec R,Cartographie avec R,R avec Python,Calculs parallèles, R shiny.
+Qui parle de statistien parle d'un spécialiste en synthèse d'information. C'est l'objet de ce document qui résume les 11 exposés.
+
+## 1. *Le package Janitor*
+
+Avez-vous envie de  nettoyer vos données et  améliorer vos tableaux de contingence(exploration)? Janitor est à votre disposition. Il suit les principes de “l’inverse” et fonctionne bien avec la fonction pipe %>%. 
+
+### 1.1 Installation et Importation du package
+
+```{r message=FALSE, warning=FALSE}
+#install.packages(janitor)
+library(janitor)
+```
+### 1.2 Fonctions principales de Janitor
+#### 1.2.1 La fonction clean_names
+Elle est incontournable.
+```{r}
+
+# Create a data.frame with dirty names
+
+test_df <- as.data.frame(matrix(ncol = 6))
+names(test_df) <- c("firstName", "ábc@!*", "% successful (2009)",
+                    "REPEAT VALUE", "REPEAT VALUE", "")
+test_df
+```
+#### 1.2.2 La fonction get_dupes()
+
+Cette fonction permet de rechercher et d'examiner les enregistrements en double lors du nettoyage des données.get_dupes() renvoie les enregistrements (et insère un nombre de doublons) afin que vous puissiez examiner les cas problématiques :
+
+```{r}
+get_dupes(mtcars, wt, cyl) # or mtcars %>% get_dupes(wt, cyl) if you prefer to pipe
+```
+
+#### 1.2.3 La fonction remove_empty() 
+
+Elle permet le nettoyage de fichiers Excel qui contiennent des lignes et des colonnes vides après avoir été lus dans R.
+```{r}
+q <- data.frame(v1 = c(1, NA, 3),
+                    v2 = c(NA, NA, NA),
+                    v3 = c("a", NA, "b"))
+q %>%remove_empty(c("rows", "cols"))
+
+```
+
+#### 1.2.4 La fonction tabyl, une meilleure version de la fonction table()
+
+tabyl() est un remplacement de table() et est accompagnée d'une série de fonctions adorn_*:
+```{r}
+mtcars %>%
+  tabyl(gear, cyl) %>%
+  adorn_totals("col") %>%
+  adorn_percentages("row") %>%
+  adorn_pct_formatting(digits = 2) %>%
+  adorn_ns() %>%
+  adorn_title(placement = "combined")
+```
+
+### 1.3 Les limites de Janitor
+
+Le package Janitor ne permet pas d'obtenir un tableau synthétique lorsqu'on veut croiser plus de deux variables. Pour ce faire, nous avons besoin du package gtsummary.
+
+## 2. *Le package gtSummary*
+
+Le package gtsummary est un outil qui nous permet de créer des tableaux analytiques avec des statistiques (moyenne, écart-type, médiane etc) qui résument au mieux l'ensemble des données, faire le resumé des modèles de regression.Pour installer le package gtsummary, on procède comme suit :
+ 
+### 2.1 Une installation pas si simple
+
+```{r eval=FALSE, include=FALSE}
+install.packages("gtsummary")
+remotes::install_github("ddsjoberg/gtsummary")
+library(gtsummary)
+
+'install.packages("rlang")
+install.packages("pak")
+pak::pkg_install("r-lib/rlang")
+```
+
+Nous allons voir certaines fonctionnalités du package gtsummary
+  
+- Création de tables simples et croisées (utilisé avec dplyr)
+
+- Tableau de résumé simples sur les variables en montrant les paramètres statistiques(tbl_summary et tbl_continuous)
+
+- Tables croisées avec la fonction tbl_cross des résumés graphiques
+
+Si nous sommes dans une situation où il faut comparer 2 ou plusieurs tables à la fois, gtsummary nous facilite la vie avec les fonctions ci-dessous :
+
+- tbl_stack() : Elle permet de coller deux ou plusieurs tables l'un au-dessus de l'autre.
+- tbl_merge() : Elle permet de placer les tables côte-à-côte en s'assurant qu'une même variable est affichée sur la même ligne.
+
+Enfin, pour personnaliser nos tableaux, nous avons theme_gtsummary_journal et theme_gtsummary_compact etc.
+
+### 2.2 La fonction tbl_summary
+
+```{r message=FALSE, warning=FALSE, echo=TRUE, eval=TRUE}
+library(gtsummary)
+## importation des données
+library(readr)
+BaseUtile_r <- read_csv("C:\\Users\\LENOVO T470\\Documents\\EXPOSES\\TP_R_Gtsummary\\BaseProjet_R.csv")
+
+##### Types de variables
+binary <- BaseUtile_r[c("sexe_r", "Delai_r")]
+multicoto <- BaseUtile_r[c("diplome_r", "Diff2_r", "StatutM_r", "StatutP_r", "Conseil_r")]
+continu <- BaseUtile_r[c("Exppro_r", "Abs1_r", "Abs2_r")]
+
+# Summary
+
+binary %>% tbl_summary() #table de résumé pour les variables binaires
+
+multicoto %>% tbl_summary() #table de résumé pour les variables multicotomiques
+
+continu %>% tbl_summary() #table de résumé pour les variables continue
+```
+### 2.3 Perspectives
+
+D'accord! Nous savons grace aux packages Janitor et gtsummary comment avoir des tableaux statistiques de qualité. Mais comment mettre ces tableaux dans un document Word ou Pdf? R markdown est une partie de R concut pour répondre aux limites de gtsummary en se qui concerne la production des documents sur et des rapports sur R.
+
+## 3. *R Markdown*
+
+### 3.1 Création d’un document R Markdown en RSudio
+
+En RStudio, nous pouvons créer un nouveau document R Markdown (extension .Rmd) par le menu :
+
+« File > New File > R Markdown… »
+
+### 3.2  Entête d’un fichier R Markdown
+
+Un fichier R Markdown débute pratiquement toujours par un entête encadré de deux lignes contenant uniquement trois tirets (---).
+
+Les métadonnées de base sont :
+
+- title : le titre du document,
+
+- author : le nom de l’auteur,
+
+- date : la date de publication du document.
+
+### 3.3 Formats du document final :
+
+- HTML;
+- PDF (à la condition d’avoir un compilateur LaTeX[miktex pour les utilisateurs  Windows]);
+- Word.
+
+### 3.4 Les parties de Rmarkdown
+
+Le fichier R markdown est composé de deux parties:
+
+#### 3.4.1 *partie chunk* reservée aux codes.
+
+Les options de blocs de code R les plus usuelles sont les suivantes :
+
+- eval (TRUE par défaut, ou FALSE) : détermine si le code R doit être évalué ou non;
+
+- echo (TRUE par défaut, ou FALSE) : détermine si le code R doit être affiché ou non;
+
+- warning (TRUE par défaut, ou FALSE) : détermine si les messages d’avertissement doivent être affichés.
+
+```{r message=FALSE, warning=FALSE, paged.print=TRUE}
+
+```
+
+#### 3.4.2 *partie texte* (non éxécutable sauf les écritures latex)
+
+Dans la partie texte, la syntaxe(##) en début permet de créer un sous titre et nous y appliquons principalement les techniques suivantes.
+
+- Pour forcer le retour à la ligne, il faut mettre "deux espaces vides à la fin d’une ligne;
+
+- Pour écrire en gras il faut mettre deux étoiles entre le mot souhaité;
+
+### 3.5 Perspectives
+
+Pour quelqun qui ne sait pas coder, il lui faut une alternative pour produire son document. Ne vous inquiétez pas. Quarto est là.
+
+## 4. *R Quarto*
+
+Tout comme R markdown, Quarto permet de produire des documents présentables. Quarto nous facilite la vie dans le sens qu'on n'a pas besoin des codes pour faire des jolies présentations car il offre un interface visuel. Voici comme ca marche.
+  
+### 4.1 Insertion des titres
+
+Pour insérer un titre, on clique sur l'onglet Normal et on choisit le niveau du titre désirée (de Header 1 à Header 6). 
+
+### 4.2 Style du texte
+
+Comme dans MS Word, il est possible de mettre notre texte en gras, italique, majuscule, miniscule etc. Il suffit juste d'aller sur l'onglet Format.
+
+### 4.3 Mise en couleur
+
+Pour faire la mise en couleur, il faut avoir des notions sur le langage CSS. Pour mettre tout le texte en couleur, on va sur l'onglet Format -> Div puis dans CSS Stle.
+
+### 4.4 Listes
+
+Possibilité de faire des lstes ordonées ou non. L'onglet Format -> Bullets & Numbering permet de le faire.
+
+### 4.5 Insérer une image
+
+On part dans le menu insérer et on choisit Image/Figure. Comme dans word, on peut effectuer des modification sur la taille, la largeur etc.
+Il y a également la possibilité de mettre 2 images l'une à côté de l'autre. Pour ça, on insère un div et  on tape layout-ncol= 2.
+
+### 4.6 Insertion des tableaux
+
+On clique sur le menu Table puis sur Insert table. Il y a également la possibilité de mettre plusieurs tableaux selon nos choix comme avec les images.
+
+### 4.7 Insérer un saut de page
+
+Ceci n'est possible qu'avec les documents word et PDF. On procède par Insert-shotcode et page break;
+
+### 4.8 Insérer une équation 
+
+Il faudrait une bonne maitrise de LaTex pour insérer une équation. On part sur l'onglet Insert-LaTex Math.
+
+### 4.9 Insérer les emojis ou symboles
+
+Pour rendre nos présentations plus attractive, on peut mettre des emojis en allant sur Insert-special character-insert emoji.
+
+### 4.10 Insérer des liens hypertextes
+
+Quarto nous donne les moyens d'accéder à une figure, equation etc à l'aide des liens hypertextes. On va dans Insert-Cross reference.
+
+### 4.11 Insérer des notes de bas de pages
+
+Pour cela on clique sur Insert-Footnote. 
+
+### 4.12 Insérer des références bibliothèque
+
+Quarto permet d'insérer la source d'une citation dans un document dans notre référence bibligraphique. Une fois que nous avons écrit notre citation, on insère le DOI qui est l'identifiant unique d'un article. Pour le faire, on tape Insert-citation-DOI et on met le DOI du fichier.
+Non seulement Quarto nous permet de faire de bonnes présentations, il permet également de faire des livres. Le livre permet d'avoir une vue d'ensemble sur la présentation. On doit noter qu'on ne peut pas ouvrir 2 livres en même temps et ça constitue une limite de Quarto.
+
+### 4.13 Perspectives
+
+Nous avons trouvé Quarto, une alternative à R markdown. Toutefois pouvons nous quitter de R vers Excel?
+
+## 5. *R vers Excel*
+
+L'objectif est d'utiliser R pour créer des tableaux et des graphiques, puis exporter les résultats au format Excel, offrant ainsi une alternative à l'utilisation directe d'Excel. Pour ce faire, cela necessite installation des packages a savoir:
+
+### 5.1 Une installation pas si simple
+
+```{r eval=FALSE, include=FALSE}
+# installer le package r2excel directement à partir du référentiel GitHub de l'auteur kassambara
+
+install.packages("devtools")
+library(devtools)
+install_github("kassambara/r2excel")
+
+library(r2excel)
+
+install.packages("writexl")
+library(writexl)  # Ce package permet d'exporter des données depuis R vers des fichiers Excel (.xlsx)
+
+install.packages("openxlsx")
+library(openxlsx) # Ce package permet de lire, d'écrire et de manipuler des fichiers Excel (.xlsx). 
+
+install.packages("xlsx")
+library(xlsx)     # Ce package fournit des fonctions pour lire, écrire et manipuler des fichiers Excel (.xlsx) en R.
+
+```
+
+### 5.2 Un exemple simplifié : 
+
+```{r eval=FALSE, include=FALSE}
+library(xlsx)
+
+# Créer un nouveau classeur Excel
+wb <- createWorkbook()
+
+# Ajouter une feuille de calcul au classeur
+sheet <- createSheet(wb, "Exemple")
+
+# Ajouter un en-tête
+xlsx.addHeader(wb, sheet, value = "Exemple de fichier Excel", level = 1)
+xlsx.addLineBreak(sheet, 1)
+
+# Ajouter un tableau avec des données
+data <- data.frame(
+  Nom = c("Alice", "Bob", "Charlie"),
+  Age = c(25, 32, 28),
+  Sexe = c("F", "M", "M")
+)
+xlsx.addTable(wb, sheet, data, startCol = 2)
+
+# Mise en forme du tableau
+xlsx.addTableStyle(wb, sheet, style = "TableStyleMedium2")
+
+# Ajouter un paragraphe
+paragraph <- "Ceci est un exemple de paragraphe ajouté au fichier Excel."
+xlsx.addParagraph(wb, sheet, paragraph, fontSize = 12, isBold = TRUE)
+xlsx.addLineBreak(sheet, 2)
+
+# Ajouter un graphique
+plotFunction <- function() {
+  plot(1:5, rnorm(5), type = "b", main = "Exemple de graphe")
+}
+xlsx.addPlot(wb, sheet, plotFunction())
+
+# Sauvegarder le classeur dans un fichier Excel
+filename <- "exemple.xlsx"
+saveWorkbook(wb, filename)
+
+# Ouvrir le fichier Excel
+system2("open", filename)
+
+```
+
+En somme, Les packages xlsx, openxlsx, et writexl sont des outils très utiles en R pour travailler avec des fichiers Excel. 
+
+### 5.3 Perspectives
+
+Au delà du transfert d'informations de R vers excel, une analyse de la fréquence des mots permettrait de mieux tirer les informations. D'où le Textmining.
+
+## 6. *TEXT MINING*
+
+Il sert à traiter des questions ouvertes des questionnaires d'enquête par exemple pour faire ressortir des connaissances significatives. Afin de faire du text mining sur une base de données, il serait nécessaire de:
+
+- faire un prétraitement de texte,
+- faire ressortir la fréquence des mots ou des bigrammes,
+- faire la matrice des mots,
+- faire un nuage de points,
+- enfin faire un reseau des mots.
+
+### 6.1 *Prétraitement du texte*
+
+Pour le prétraitement, on aura besoin des packages ci-dessus :
+```{r eval=FALSE, warning=FALSE, include=FALSE}
+library(tidytext)
+library(dplyr)
+library(tm)
+```
+ 
+### *6.2 Fréquence des mots et nuage des mots*
+ 
+ Après le prétraitement, on peut soit s'intéresser à la fréquences des mots et des bigrammes ou au nuage des mots.L'avantage des bigrammes est qu'ils apportent plus d'informations approfondies.
+Pour avoir le nuage des mots, on utilise le package suivant :
+
+```{r eval=FALSE, include=FALSE}
+library(wordcloud)
+```
+
+- Le nuage des mots peut-être ajusté aléatoirement avec la fonction Set.seed(). Par exemple set.seed(2314) ne peut pas fixer le nuage de mots de la même manière que set.seed(9675). 
+- Le nuage de mots change mais la fréquence des mots n'est aucunument impactée. Outre le nuage des mots, on peut aussi faire le nuage des bigrammes. Plus un mot(ou bigramme) sur le nuage de mots(ou bigramme) est gros et gras pus est grande la fréquence.
+  
+## 7. *Cartographie avec R*
+
+
+### 7.1 Concepts de base de la cartographie}}
+
+#### 7.1.1 Système de coordonnées de référence (CRS)}}
+
+Le système de coordonnées de référence (CRS) permet de situer les objets géographiques sur la Terre.Sur R, pour créer un CRS on utilise la fonction *CRS()* du package *sp*. Par exemple :
+
+```{r crs, eval=FALSE}
+library(sp)
+crs <- CRS("+proj=utm +datum=WGS84 +ellps=WGS84")
+```
+
+- Le paramètre *+proj* spécifie la projection à utiliser.
+
+- *+datum* définit l'origine, l'orientation et l'échelle du système de coordonnées par rapport à la Terre.
+
+- *+ellps*, quant à lui, spécifie uniquement l'ellipsoïde de référence utilisé pour représenter la forme de la Terre.
+
+Pour attribuer un CRS à un objet spatial existant, on peut utiliser la fonction st_crs() du package *sf* :
+ 
+```{r st_crs, eval=FALSE}
+library(sf)
+data <- st_read("data.shp")
+st_crs(data) <- crs
+```
+
+
+#### 7.1.2 Fichiers de données spaciales
+
+Les données spatiales suivent deux modes: le mode raster et le mode vecteur.
+Un raster est une image(png,jpg,asc,db) alors qu'un vecteur représente les entités géographiques(points, lignes, polygones) et comportent les formats shapefile et json.
+
+
+### 7.2 Lecture et manipulations des données spaciales sur R
+
+#### 7.2.1 Passage des données non spaciale à des données de la classe "Spaciale"
+
+Commençons par importer des données classiques, c’est-à-dire dans un format non spatial, par exemple auformat texte .csv.
+Pour importer ces données sous R :
+
+```{r message=FALSE, warning=FALSE}
+seisme_df <- read.csv2("C:\\Users\\LENOVO T470\\Documents\\EXPOSES\\Exposé R -Cartographie\\Donnees\\earthquake\\earthquakes.csv")
+head(seisme_df, 2) 
+```
+
+Dans la suite, nous présenterons les deux solutions (*sp* et *sf*) simultatément
+
+##### 7.2.2 La classe sp
+
+On utilise la fonction *coordinates()* et on précise avec le symbole *~* quelle sont les variables de géolocalisation.
+
+```{r message=FALSE, warning=FALSE}
+library(sp)
+seisme_sp <- seisme_df
+coordinates(seisme_sp) <- ~Longitude + Latitude
+class(seisme_sp) 
+```
+
+##### 7.2.3 La classe sf
+
+On utilise la fonction *st_as_sf()* de la manière suivante :
+
+```{r message=FALSE, warning=FALSE}
+library(sf)
+seisme_sf <- st_as_sf(seisme_df, coords = c("Longitude", "Latitude"))
+class(seisme_sf) 
+```
+
+### 7.3 Importation des données spatiales
+
+Nous allons voir les deux façons d’importer ces données selon qu’on choisit la classe sp ou bien la classe sf
+
+- *Classe sp*
+
+Nous utilisons la fonction "readOGR()" issu du package "rgdal" qui permet
+d'importer les types de données spatiales: 
+
+```{r message=FALSE, warning=FALSE}
+library(rgdal)
+world_sp <- readOGR(dsn = "C:\\Users\\LENOVO T470\\Documents\\EXPOSES\\Exposé R -Cartographie\\Donnees\\World WGS84",
+layer = "Pays_WGS84")
+```
+
+- *Classe sf*
+Dans ce cas, nous utilisons la fonction st_read()
+
+```{r}
+world_sf <- st_read("C:\\Users\\LENOVO T470\\Documents\\EXPOSES\\Exposé R -Cartographie\\Donnees\\World WGS84\\Pays_WGS84.shp")
+```
+
+### 7.4 Sélection d’observations
+
+Pour la classe sf, on peut utiliser la même syntaxe que pour sp, mais en plus, on peut utiliser la syntaxe à la mode dplyr.
+
+```{r message=FALSE, warning=FALSE}
+library(tidyverse)
+uemoa_sf <- world_sf %>%
+  filter(NOM %in% c("Benin", "Burkina Faso", "Guinea-Bissau",
+                    "Ivory Coast", "Mali",
+                    "Niger", "Senegal","Togo"))
+```
+
+### 7.5 Représentations de cartes de base
+
+On utilise la fonction plot() qui appliquée à un objet “Spatial” va seulement représenter la géométrie de l’objet. On peut ensuite utiliser les fonctions graphiques de base (title(), legend(), etc.) pour ornementer le graphique
+
+```{r}
+plot(uemoa_sf, main = "Pays de l'UEMOA")
+```
+
+### 7.6 Aggrégation des données
+ 
+Créons un nouveau jeu de données avec les mêmes observations.
+
+```{r}
+uemoa2.df <- data.frame(NOM = c("Benin", "Burkina Faso",
+                       "Guinea-Bissau", "Ivory Coast", 
+                       "Mali", "Niger", "Senegal"),
+  pib = c(14954,16686,1458,59221,16183,12609,23354),
+  pop = c(12996,22100,2060,27478,21904,25252,16876),
+  region = rep("O", 7))
+row.names(uemoa2.df) <- uemoa2.df$NOM
+```
+
+
+Pour aggéger les données spatiales de type sf, on peut
+aussi utiliser la syntaxe dplyr. Ici, on aggrége d’abord les entités spatiales et on applique ensuite la fonction merge() :
+
+```{r}
+uemoa_sf_new <- uemoa_sf %>% group_by(
+  NOM = c("Benin", "Burkina Faso", "Guinea-Bissau",
+  "Ivory Coast", "Mali","Niger", "Senegal", "Benin")) %>%
+  summarise() %>%
+  merge(uemoa2.df, by = "NOM")
+class(uemoa_sf_new)
+```
+
+
+### 7.7 Afficher plusieurs cartes sur la même figure
+
+Il faut ici utiliser l’argument mfrow de la fonction *par()*. 
+```{r}
+
+
+zmoa_df <- data.frame(NOM = c("Gambia, The", "Ghana",
+  "Guinea", "Liberia", "Nigeria", "Sierra Leone"),
+   pib = c(1719,66882,13606,2965,452971,3505),
+   pop = c(2639,31394,13531,5193,213401,8141), 
+  region = rep("O", 6))
+
+```
+
+
+```{r}
+library(mapsf)
+par(mfrow = c(1, 2))
+# first map
+mf_map(uemoa_sf)
+mf_title("Carte de l'UEMOA")
+# second map
+zmoa_sf <- world_sf %>% filter(
+        NOM %in% c("Gambia, The", "Ghana", "Guinea",
+                    "Liberia", "Nigeria", "Sierra Leone"))
+mf_map(zmoa_sf)
+mf_title("Carte de la ZMAO")
+```
+
+## 8. *Résolution de système d’équations non linéaire avec R*
+
+Pour résoudre un système d'équations non linéaires, R dispose d'un ensemble de package et fonctions.
+
+### 8.1 Le package rootSolve
+
+Le package “rootSolve”  fournit des outils pour la résolution numérique de systèmes d’équations non linéaires.
+
+#### 8.1.1 rootSolve::multiroot()
+
+Cette fonction est utilisée pour résoudre des systèmes d’équations non linéaires multivariées et l’algorithme est implémenté avec la méthode de Newton-Raphson.
+
+```{r message=FALSE, warning=FALSE}
+# install.packages("rootSolve")
+library(rootSolve)
+# Définition du système d'équations
+model <- function(x){ c(F1 = x[1]^2+ x[2]^2 -1,
+F2 = x[1]^2- x[2]^2 +0.5)
+}
+solution <- multiroot(f = model, start = c(1, 1))
+# Affichage des solutions
+print(solution$root)
+```
+
+### 8.2 Le package nleqslv
+
+Le package “nleqslv” offre des fonctionnalités avancées en utilisant des méthodes itératives basées sur la méthode de Newton et de broyden(méthode par défaut).
+
+#### 8.2.1 nleqslv::nleqslv()
+
+Cette fonction prend en entrée une fonction d’équation multivariée, un vecteur initial de valeurs approchées pour les variables, et retourne une approximation des valeurs des variables qui satisfont le système d’équations.
+
+### 8.3 Le package pracma
+
+Le package “pracma” aussi propose les fonctions fsolve() et broyden() pour la résolution.
+
+### 8.4 Les méthodes indirectes
+
+Elles consistent à résoudre un système d’équations non linéaires à l’aide d’un problème d’optimisation. Sous R,les fonctions comme optim () dans le package stats , optimx() dans le package optimx font l'affaire.
+
+## 9. *Utilisation de Python dans R :Package Reticulate*
+
+Cet exposé portait sur l'utilisation de Python dans R, c'est-à-dire comment exécuter du code Python dans R. Pour cela, il est nécessaire d'installer un package appelé Reticulate. Reticulate est un package R qui permet une intégration étroite entre R et Python. Alors comment installer Reticulate? 
+Comme les autres packages, nous l'installons à travers la syntaxe suivante : 
+
+### 9.1 Installation et importation
+
+```{r eval=FALSE, include=FALSE}
+install.packages("reticulate")
+library(reticulate)
+```
+
+Avant d'utiliser le package reticulate de R, il est important de s'assurer d'avoir Python installé sur votre machine, avec une version égale ou supérieure à 2.7. Possible de vérifier la disponibilité de Python à partir de R en utilisant la fonction py_available() du package reticulate.
+
+La deuxième étape est de créer un environnement de travail 
+
+```{r eval=FALSE, include=FALSE}
+
+# choix de l'environement Python
+reticulate::use_virtualenv("virtual_py")
+```
+
+Nous pouvons mainteneant travailler avec des codes Python
+
+### 9.2 Installation des packages Python 
+
+```{r installation packages}
+
+reticulate::py_install("pandas", "virtual_py")
+
+```
+
+### 9.3 Importer des données
+
+```{python eval=FALSE, include=FALSE}
+
+import pandas as pd
+data= pd.read_csv("chipo.csv")
+print(data.head()) # affichage des premières lignes de la base 
+
+```
+
+Ensuite nous pouvons effectuer toutes manipulations avec des codes Python.
+
+### 9.4 Recommendations
+
+- Demande une maîtrise de la syntaxe de Python et de la syntaxe R;
+- Dépendance aux packages Python: vous devez toujours installer les packages avant de les importer
+
+## 10. *Calculs parallèles*
+
+Le package parallel de R est une bibliothèque standard intégrée à R qui offre des fonctionnalités pour l'exécution parallèle de code. Cette dernière consiste à diviser une tâche en sous-tâches qui peuvent être exécutées simultanément sur plusieurs processeurs ou cœurs de calcul.
+
+### 10.1 Les fonctions importantes de parallel sont : 
+
+- *detectCores()*: Cette fonction est utilisée pour détecter le nombre de cœurs de calcul disponibles sur votre système.
+
+- *makeCluster()* utilisée pour créer un cluster de calcul parallèle. Un cluster est un groupe de nœuds ou de processus R qui peuvent exécuter des tâches en parallèle. 
+
+- *stopCluster()* utilisée pour arrêter et libérer les ressources d'un cluster de calcul parallèle créé avec makeCluster().
+
+- *parApply()* qui divise le tableau en morceaux et distribue ces morceaux sur les cœurs disponibles pour être traités en parallèle.
+
+- *parLapply()*: qui divise la liste ou le vecteur en sous-ensembles et les distribue sur les cœurs disponibles pour être traités en parallèle.
+
+- *parSapply()* similaire à parLapply(), mais qui retourne les résultats sous la forme d'un vecteur simplifié plutôt que d'une liste.
+
+On a également  les packages **doParallel** et **foreach** en R, qui sont souvent utilisés en conjonction pour faciliter l'exécution parallèle de code.
+
+### 10.2 Les fonctions importantes de doParallel et foreach
+
+- *foreach()*: est une fonction du package foreach qui permet d'itérer sur des objets de manière parallèle ou séquentielle. 
+
+- *%dopar%* :  est utilisé pour différencier les boucles parallèles des boucles séquentielles.
+
+- *registerDoParallel()*: Cette fonction du package doParallel permet d'enregistrer un backend parallèle  responsable de la gestion des cœurs ou des nœuds utilisés pour l'exécution parallèle.
+
+Alors pour commencer il est important de nettoyer la machine : 
+```{r eval=FALSE, include=TRUE}
+rm(list=ls())
+
+```
+
+- *gc()* : permet de nettoyer cette mémoire occupée par les objets inutilisés afin d'améliorer les performances du programme
+
+```{r}
+gc()
+```
+
+### 10.3 Importation d'une base de données très volumineuse en utilisant le package parallel
+
+```{r eval=FALSE, include=TRUE}
+library(parallel)
+
+# Définir le nombre de cœurs
+num_cores <- detectCores()
+
+# Créer un cluster parallèle
+cl <- makeCluster(num_cores)
+
+# Liste des noms de fichiers à importer
+file_names <- c("data_part1.csv", "data_part2.csv", "data_part3.csv")
+
+# Importer les fichiers en parallèle
+import_data <- parLapply(cl, file_names, function(file) {
+  read.csv(file)  # Importer chaque fichier CSV
+})
+
+# Arrêter le cluster parallèle
+stopCluster(cl)
+
+# Combiner les résultats
+combined_data <- do.call(rbind, import_data)  # Fusionner les morceaux de données
+
+# Utiliser les données importées
+
+```
+
+### 10.4 Calcul de moyenne d'un vecteur 
+
+```{r eval=FALSE, message=FALSE, warning=FALSE, include=FALSE}
+
+# Définir le nombre de cœurs
+num_cores <- detectCores()
+
+# Créer un cluster parallèle
+cl <- makeCluster(num_cores)
+
+# Vecteur d'exemple
+vector <- c(1, 2, 3, 4, 5, 6, 7, 8, 9, 10)
+
+# Diviser le vecteur en sous-vecteurs
+sub_vectors <- split(vector, 1:num_cores)
+
+# Calculer la moyenne en parallèle
+means <- parLapply(cl, sub_vectors, mean)
+
+# Arrêter le cluster parallèle
+stopCluster(cl)
+
+# Calculer la moyenne globale
+average <- mean(unlist(means))
+
+# Afficher la moyenne
+print(average)
+
+```
+
+En somme , avec parallel, nous pouvons diviser des tâches en sous-tâches et les exécuter en parallèle sur plusieurs cœurs ou nœuds de calcul, ce qui permet de réduire le temps d'exécution.
+
+## 11. *R shiny*
+
+### 11.1 Présentation shiny
+
+Shiny est un package R développé par RStudio qui permet de créer des applications web interactives. Shiny utilise un modèle ui-server : le serveur R exécute le code R et génère les sorties dynamiques, tandis que l'ui (navigateur web) affiche l'interface utilisateur. 
+
+### 11.2 Interface utilisateur
+
+L'interface utilisateur contient tout ce qui est visible par l'utilisateur et on utilise plusieurs fonctions:
+
+- **fluidPage** : Crée une page Shiny fluide qui s'adapte à la taille de la fenêtre du navigateur.
+
+- **titlePanel** : Affiche un titre en haut de la page Shiny.
+
+- **selectInput**: Crée un menu déroulant permettant à l'utilisateur de sélectionner une option parmi une liste.
+
+- **sliderInput** : Crée un curseur coulissant permettant à l'utilisateur de sélectionner une valeur numérique dans une plage définie.
+
+```{r eruptions, eval=FALSE, include=FALSE}
+library(shiny)
+inputPanel(
+  selectInput("n_breaks", label = "Number of bins:",
+              choices = c(10, 20, 35, 50), selected = 20),
+  
+  sliderInput("bw_adjust", label = "Bandwidth adjustment:",
+              min = 0.2, max = 2, value = 1, step = 0.2)
+)
+
+```
+
+- **verbatimTextOutput** : Affiche du texte généré par le serveur dans l'interface utilisateur sans modification.
+
+- **textInput**:  Permet de créer un widget de saisie de texte dans une application Shiny.
+
+```{r eval=FALSE, include=FALSE}
+library(shiny)
+
+inputPanel(
+  textInput("input_text", "Saisir un texte"),
+  verbatimTextOutput("output_text"),
+)
+
+renderPrint({
+    input$input_text
+  })
+
+```
+
+### 11.3 Server
+
+Dans la partie server, on programme comment les éléments de l'ui doivent s'afficher et les interactions entre eux.
+
+Il y a plusieurs fonctions qu'on utilise dans le serveur. 
+
+- **renderPlot**: permet de renvoyer une représentation graphique
+
+- **renderTable**: permet de renvoyer un tableau dans l'interface
+
+- **renderText**: permet de renvoyer un texte dans l'interface
+
+```{r eval=FALSE, include=FALSE}
+renderTable({iris})
+renderPlot({hist(x = iris$Sepal.Length)})
+```
+
+```{r eval=FALSE, include=FALSE}
+renderPlot({hist(x = iris$Sepal.Length)})
+```
+
+## *Conclusion*
+
+Les 11 exposés confirment que le logiciel R est très riche et disposent de tous les outils de la préparation des données à la création de plateformes interactives en passant par les analyses statisques.
+Il incombe à tout statisticien ou analyste de données de le maitriser car sans cela, il est "un baobab sans racines".

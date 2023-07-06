@@ -1,0 +1,688 @@
+---
+title: "Janitor: Reproduction des tableaux sur RmarkDown "
+author: "NFEGUE, CREPIN, JEAN-PIERRE, TIENDREBEOGO"
+output:
+  pdf_document: default
+  word_document: default
+  html_document:
+    df_print: paged
+header-includes: 
+  - \usepackage{setspace}
+---
+
+\setstretch{1.5}
+
+\textcolor{blue}{\section{DESCRIPTION}}
+
+Les principales fonctions du Package Janitor peuvent : 
+
+- formater parfaitement les noms de colonnes des data.frame ;
+
+- fournir des comptages rapides des combinaisons de variables (c.-à-d. la fréquence) de colonnes data.frame;
+
+- explorer les enregistrements en double. D'autres fonctions de concierge formatent joliment les résultats de la tabulation. 
+
+Ces fonctions de tabulation et de rapport se rapprochent des caractéristiques populaires de SPSS et de Microsoft Excel. 
+
+- Ce package suit les principes de "l'inverse" et fonctionne bien avec la fonction pipe %>%. janitor a été conçu pour les utilisateurs débutants et intermédiaires de R et est optimisé pour être facile à utiliser, optimisé pour la convivialité.
+
+
+\textcolor{blue}{\section{OPERATIONNALITE}}
+
+- Le package janitor comprend (mais pas seulement) un certain nombre de fonctions pour améliorer vos tableaux de contingence. En Anglais, “janitor” veut dire (plus ou moins) “homme à tout faire”. 
+
+- Et en effet, outre les tâches liées à la mise en forme de ces tableaux, le package janitor vise à prendre en charge pour vous un certain nombre de tâches aussi variées que pénibles .
+
+\textcolor{blue}{\section{IMPORTATION DES PACKAGES NECESSAIRES}}
+
+Nous allons d'abord installer et importer le package Janitor.
+
+```{r message=FALSE}
+#install.package(janitor)
+library(janitor)
+```
+
+
+Toutefois, d'autres packages nous ont été utiles dans notre exposé.
+
+```{r message=FALSE, warning=FALSE}
+library(tidyverse)
+library(dplyr)
+library(gt)
+library(knitr)
+library(tinytex)
+library(readxl)
+library(flextable)
+```
+
+
+\textcolor{blue}{\section{VUE D'ENSEMBLE DE QUELQUES FONCTIONS DU PACKAGE JANITOR}}
+
+**add_totals_col()**
+
+**add_totals_row()**
+
+**adorn_ns()**
+
+**adorn_pct_formatting ()**
+
+**adorn_percentages()**
+
+**adorn_rounding()**
+
+**adorn_title()**
+
+**adorn_totals()**
+
+**clean_names()** 
+
+**compare_df_cols()**
+
+**compare_df_cols_same()**
+
+**convert_to_date()**
+
+**excel_numeric_to_date()**
+
+**get_dupes()**
+
+**get_one_to_one()**
+
+**make_clean_names()**
+
+**remove_constant()** 
+
+**remove_empty()** 
+
+**remove_empty_cols()**
+
+**remove_empty_rows()** 
+
+**round_half_up()** 
+
+**round_to_fraction()**
+
+**row_to_names()** 
+
+**tabyl()**
+
+**top_levels()** 
+
+**untabyl()** 
+
+**use_first_valid_of()**
+
+\textcolor{blue}{\section{I. LES FONCTIONS DE NETTOYAGE}}
+
+\textcolor{blue}{\subsection{ 1. La fonction clean{\_}names()}}
+
+Appelez cette fonction à chaque fois que vous lisez des données. Elle fonctionne dans un pipeline %>% et gère les noms de variables problématiques, en particulier ceux qui sont si bien préservés par readxl::read_excel() et readr::read_csv().
+
+- Analyse la casse des lettres et les séparateurs dans un format cohérent.
+
+La valeur par défaut est snake_case, mais d'autres cas comme camelCase sont disponibles.
+
+- Gère les caractères spéciaux et les espaces, y compris la translittération de caractères tels que œ en oe.
+
+- Ajoute des chiffres aux noms dupliqués
+
+- Convertit "%" en "pourcentage" et "#" en "nombre" pour conserver la signification.
+L'espacement (ou l'absence d'espacement) autour des nombres est préservé.
+
+
+```{r}
+
+# Create a data.frame with dirty names
+
+test_df <- as.data.frame(matrix(ncol = 6))
+names(test_df) <- c("firstName", "ábc@!*", "% successful (2009)",
+                    "REPEAT VALUE", "REPEAT VALUE", "")
+test_df 
+```
+
+
+Cette fonction nettoie les noms des variables et renvoie un data.frame :
+
+```{r}
+
+test_df %>%
+  clean_names()
+```
+
+Comparez à ce que la base R produit:
+
+```{r}
+
+make.names(names(test_df))
+```
+
+- D'autres fonctionnalités de la fonction clean_names()
+
+```{r}
+# --- Simple Usage ---
+x <- data.frame(caseID = 1, DOB = 2, Other = 3)
+clean_names(x)
+# or pipe in the input data.frame:
+x %>%
+clean_names()
+# if you prefer camelCase variable names:
+x %>%
+clean_names(., "lower_camel")
+
+# --- Taking advantage of the underlying snakecase::to_any_case arguments ---
+# Restore column names to Title Case, e.g., for plotting
+
+mtcars %>%
+clean_names(case = "title") %>% 
+  head()
+
+# Tell clean_names to leave certain abbreviations untouched:
+x %>%
+clean_names(case = "upper_camel", abbreviations = c("ID", "DOB"))
+
+```
+
+Cette fonction est alimentée par la fonction exportée sous-jacente make_clean_names(), qui accepte et renvoie un vecteur de caractères de noms (voir ci-dessous). Cela permet de nettoyer les noms de n'importe quel objet, et pas seulement d'un data.frame. clean_names() est conservée pour sa commodité dans les flux de travail en pipeline, et peut être appelée sur un objet sf simple features ou un objet tbl_graph tidygraph en plus d'un data.frame.
+
+**Ces data.frames contiennent-ils réellement les mêmes colonnes ?
+
+\textcolor{blue}{\subsection{ 2. La fonction compare{\_}df{\_}cols()}}
+
+Pour les cas où vous disposez d'un ensemble de fichiers de données qui devraient être identiques et que vous souhaitez lire et combiner pour l'analyse. Mais dplyr::bind_rows() ou rbind() échoue, parce que les colonnes sont différentes ou parce que les classes de colonnes ne correspondent pas d'un data.frame à l'autre.
+La fonction compare_df_cols() prend des noms de data.frames / tibbles non quotés, ou une liste de data.frames, et renvoie un résumé de la façon dont ils se comparent. Voyez quels sont les types de colonnes, lesquels sont absents ou présents dans les différentes entrées, et comment les types de colonnes diffèrent.
+
+```{r}
+df1 <- data.frame(a = 1:2, b = c("big", "small"))
+df2 <- data.frame(a = 10:12, b = c("medium", "small", "big"), c = 0, stringsAsFactors = TRUE) # here, column b is a factor
+df3 <- df1 %>%
+  dplyr::mutate(b = as.character(b))
+
+compare_df_cols(df1, df2, df3)
+
+
+compare_df_cols(df1, df2, df3, return = "mismatch")
+
+compare_df_cols(df1, df2, df3, return = "mismatch", bind_method = "rbind") # default is dplyr::bind_rows
+```
+
+compare_df_cols_same() renvoie VRAI ou FAUX indiquant si les data.frames peuvent être reliés avec succès à l'aide de la méthode de liaison donnée :
+
+```{r}
+compare_df_cols_same(df1, df3)
+
+compare_df_cols_same(df2, df3)
+```
+
+
+\textcolor{blue}{\subsection{3. La fonction make{\_}clean{\_}names()}}
+
+Comme la fonction make.names() de R de base, mais avec le style et le choix des cas de la fonction clean_names() de l'administrateur de longue date. Alors que clean_names() est toujours proposée pour une utilisation dans le pipe line data.frame avec %>%, make_clean_names() permet une utilisation plus générale, par exemple sur un vecteur.
+
+Il peut également être utilisé comme argument de .name_repair dans la dernière version de tibble::as_tibble :
+
+```{r}
+tibble::as_tibble(iris, .name_repair = janitor::make_clean_names)
+```
+
+\textcolor{blue}{\subsection{4. La fonction remove{\_}empty() }}
+
+Fait ce qu'elle dit. Pour des cas comme le nettoyage de fichiers Excel qui contiennent des lignes et des colonnes vides après avoir été lus dans R.
+
+```{r}
+q <- data.frame(v1 = c(1, NA, 3),
+                    v2 = c(NA, NA, NA),
+                    v3 = c("a", NA, "b"))
+q
+q %>%remove_empty(c("rows", "cols")) %>% 
+    flextable::flextable() %>%    # convertir en une belle image
+  flextable::autofit() 
+
+```
+
+\textcolor{blue}{\subsection{5.  La fonction remove{\_}constant()}}
+
+Supprime les colonnes d'un data.frame qui ne contiennent qu'une seule valeur constante (avec une option na.rm pour contrôler si les NA doivent être considérés comme des valeurs différentes de la constante).
+
+remove_constant et remove_empty fonctionnent aussi bien sur les matrices que sur les data.frames.
+
+```{r}
+a <- data.frame(good = 1:3, boring = "the same")
+a
+a %>% remove_constant()
+```
+
+
+\textcolor{blue}{\subsection{6. La fonction get{\_}dupes()}}
+
+Cette fonction permet de rechercher et d'examiner les enregistrements en double lors du nettoyage des données - généralement lorsqu'il ne devrait pas y en avoir.
+Par exemple, dans un data.frame bien rangé, on peut s'attendre à ce qu'un identifiant unique soit répété pour chaque année, mais qu'il n'y ait pas de paires d'identifiants uniques et d'années dupliquées. Supposons que vous souhaitiez vérifier et étudier ces enregistrements dupliqués.
+get_dupes() renvoie les enregistrements (et insère un nombre de doublons) afin que vous puissiez examiner les cas problématiques :
+
+```{r}
+get_dupes(mtcars, wt, cyl) # or mtcars %>% get_dupes(wt, cyl) if you prefer to pipe
+```
+
+
+\textcolor{blue}{\subsection{7.  La fonction get{\_}one{\_}to{\_}one()}}
+
+Cette fonction montre quelles colonnes d'un data.frame ont, le cas échéant, une relation biunivoque entre elles.
+Voici un petit exemple qui examine les quatre premières lignes du data.frame starwars du package dplyr. Les variables sont regroupées en trois ensembles de groupes univoques
+
+```{r}
+
+library(dplyr)
+starwars[1:4,]
+starwars[1:4,] %>%
+  get_one_to_one()
+
+```
+
+
+\textcolor{blue}{\subsection{8.  La fonction round{\_}half{\_}up()}}
+
+R utilise « l'arrondissement du banquier », c'est-à-dire que les moitiés
+sont arrondies au nombre pair le plus proche. Cette fonction, une
+implémentation exacte de
+<https://stackoverflow.com/questions/12688717/round-up-from-5/12688836#12688836>,
+arrondira toutes les moitiés. Comparer:
+
+```{r}
+nums <- c(2.5, 3.5)
+round(nums)
+
+round_half_up(nums)
+```
+
+\textcolor{blue}{\subsection{9. La fonction round{\_}to{\_}fraction()}}
+
+Supposons que vos données ne doivent avoir que des valeurs de trimestres
+: 0, 0,25, 0,5, 0,75, 1, etc. Mais il existe soit des valeurs
+incorrectes entrées par l'utilisateur, comme ou des problèmes de
+précision en virgule flottante comme . volonté Appliquer la distribution
+fractionnaire souhaitée en arrondissant les valeurs à la valeur la plus
+proche étant donné le dénominateur
+spécifié.0.20.25000000001round_to_fraction()
+
+Il y a aussi un argument pour la suite facultative arrondi.digits
+
+\textcolor{blue}{\subsection{10. La fonction excel{\_}numeric{\_}to{\_}date()}}
+
+Avez-vous déjà chargé des données à partir d'Excel et vu une valeur
+comme l'endroit où une date devrait être? Cette fonction convertit ces
+numéros de série en classe , avec des options pour différents encodage
+de date Excel systèmes, préservant des fractions d'une date comme temps
+(auquel cas le la valeur renvoyée est de classe ), et en spécifiant une
+heure zone.42223DatePOSIXl
+
+```{r}
+
+excel_numeric_to_date(41103)
+
+excel_numeric_to_date(41103.01) # ignores decimal places, returns Date object
+
+excel_numeric_to_date(41103.01, include_time = TRUE) # returns POSIXlt object
+
+excel_numeric_to_date(41103.01, date_system = "mac pre-2011")
+```
+
+\textcolor{blue}{\subsection{11.  La fonction convert{\_}to{\_}date()}}
+
+**Convertir un Mélange de formats date et datetime à la date**
+
+S'appuyant sur , les nouvelles fonctions et sont plus robustes à un
+mélange d'entrées. Pratique lors de la lecture de nombreuses feuilles de
+calcul Cela devrait avoir les mêmes formats de colonne, mais ce n'est
+pas le cas.excel_numeric_to_date()convert_to_date()convert_to_datetime()
+
+Par exemple, ici un vecteur avec une date et une date Excel heure voit
+les deux valeurs ont été converties avec succès en classe Date :
+
+```{r}
+convert_to_date(c("2020-02-29", "40000.1"))
+```
+
+\textcolor{blue}{\subsection{12. La fonction row{\_}to{\_}names()}}
+
+Si un fichier data.frame a les noms de variables prévus stockés dans
+l'un de ses lignes, élèvera la ligne spécifiée à deviennent les noms du
+fichier data.frame et éventuellement (par défaut) suppriment la ligne
+dans laquelle les noms ont été stockés et/ou les lignes
+au-dessus.row_to_names()
+
+```{r}
+dirt <- data.frame(X_1 = c(NA, "ID", 1:3),
+                   X_2 = c(NA, "Value", 4:6))
+
+dirt %>% 
+  find_header()
+row_to_names(dirt, 2)
+```
+
+\textcolor{blue}{\subsection{13. La fonction find{\_}header()}}
+
+La fonction est une fonction compagnon de . Par défaut, il recherchera
+un data.frame pour la première ligne sans valeurs manquantes et renvoyer
+ce numéro de ligne.find_header()row_to_names()
+
+Il peut également être utilisé pour renvoyer le numéro de ligne où une
+chaîne donnée est présent dans la première colonne ou dans une colonne
+spécifique. Ensuite, ce résultat peut être fourni à .row_to_names()
+
+
+\textcolor{blue}{\subsection{14. La fonction top{\_}levels()}}
+
+Conçu à l'origine pour être utilisé avec les données d'enquête de Likert
+stockées en tant que Facteurs. Renvoie une table de fréquences avec
+lignes nommées de manière appropriée, regroupées en groupes
+tête/milieu/queue.tbl_df
+
+Prend une taille spécifiée par l'utilisateur pour les groupes tête/queue
+Calcule automatiquement une colonne de pourcentage Prise en charge du
+tri Peut afficher ou masquer des valeurs.NA
+
+```{r}
+f <- factor(c("strongly agree", "agree", "neutral", "neutral", "disagree", "strongly agree"),
+            levels = c( "agree", "neutral", "disagree", "strongly disagree"))
+top_levels(f)
+top_levels(f, n = 1)
+
+```
+
+
+\textcolor{blue}{\section{ II. LES FONCTIONS DE TABLEAUX}}
+
+
+\textcolor{blue}{\subsection{1. La fonction tabyl():un meilleure version de table()}}
+
+tabyl() est un remplacement de table() orienté tidyverse. Elle compte les combinaisons d'une, deux ou trois variables, et peut ensuite être formatée à l'aide d'une série de fonctions adorn_* pour ressembler à ce que vous voulez. Par exemple :
+```{r}
+mtcars %>%
+  tabyl(gear, cyl) %>%
+  adorn_totals("col") %>%
+  adorn_percentages("row") %>%
+  adorn_pct_formatting(digits = 2) %>%
+  adorn_ns() %>%
+  adorn_title(placement = "combined") %>% 
+    flextable::flextable() %>%   
+  flextable::autofit() 
+```
+
+Comme vous avez pu le constater, l'utilisation de tabyl() s'accompagne des fonctions suivantes:
+- adorn_totals()
+- adorn_percentages()
+- adorn_pct_formatting()
+- adorn_ns() 
+- adorn_title()
+
+\textcolor{blue}{\subsection{2. La fonction adorn{\_}totals()}}
+
+Cette donction ajoute une colonne de totaux à un data.frame.
+
+- Utilisation
+adorn_totals(dat, na.rm = TRUE) ou adorn_totals("col") pour spécifier en colonne
+- Arguments
+dat un data.frame en entrée avec au moins une colonne numérique.
+na.rm Les valeurs manquantes (y compris NaN) doivent-elles être omises des calculs ?
+- Valeur
+Renvoie un data.frame avec une colonne de totaux contenant des sommes sur une ligne.
+
+\textcolor{blue}{\subsection{3. La fonction adorn{\_}percentages()}}
+
+Cette fonction convertit un data.frame d'effectifs en pourcentages.
+
+- Description de la fonction
+Cette fonction exclut par défaut la première colonne du data.frame d'entrée, en supposant qu'elle contienne une variable descriptive, mais il est possible d'y déroger en spécifiant les colonnes à orner dans l'argument.
+- Utilisation
+adorn_percentages(dat, denominator = "row", na.rm = TRUE, ...)
+
+- Arguments
+denominator la direction à utiliser pour calculer les pourcentages. L'un des choix suivants : "row", "col" ou "all".
+
+\textcolor{blue}{\subsection{4. La fonction adorn{\_}pct{\_}formatting()}}
+
+ Elle formate un data.frame de décimales en pourcentages.
+ 
+\textcolor{blue}{\subsection{5. La fonction adorn{\_}ns()}}
+
+Cette fonction ajoute les N sous-jacents à un tableau affichant les pourcentages.
+
+\textcolor{blue}{\subsection{6. La fonction adorn{\_}title()}}
+
+Elle permet d'ajouter le nom d'une colonne en haut d'un tableau à double sens.
+
+```{r}
+mtcars %>%
+tabyl(am, cyl) %>%
+adorn_title(placement = "top")
+
+```
+
+
+\textcolor{blue}{\section{III. PHASE PRATIQUE : APPLICATION DE QUELQUE FONCTIONS DE JANITOR}}
+
+\textcolor{blue}{\section{Exemple sur une base }}
+```{r}
+My_data <- read_excel("My_data.xlsx")
+My_data %>% 
+  gt() %>% 
+  tab_header(title =md("**My_base**"),subtitle = md("Une base de donnée **fictive** sur d'une entreprise quelconque")) %>% 
+  tab_source_note("My_data")
+My_data %>% 
+  names()
+```
+
+
+
+\textcolor{blue}{\subsection{La fonction clean{\_}names()}}
+
+```{r}
+clean = My_data %>%
+  janitor:: clean_names()
+data.frame(colnames(My_data),colnames(clean)) %>% 
+  gt()
+  
+```
+
+```{r}
+
+```
+
+
+\textcolor{blue}{\subsection{La fonction remove{\_}empty()}}
+```{r}
+clean[,ncol(clean)]
+clean_x = clean %>% 
+  janitor::remove_empty(which = "cols")
+clean_x %>% 
+  names
+```
+
+\textcolor{blue}{\subsection{La fonction compare{\_}df{\_}cols()}}
+ 
+```{r}
+clean %>% 
+compare_df_cols(clean,clean_x) %>% 
+  gt()
+```
+
+\textcolor{blue}{\subsection{La fonction get{\_}dupes()}}
+
+```{r}
+clean %>% 
+  janitor::get_dupes(id) %>%
+  gt()
+clean %>% 
+  janitor::get_dupes(diplome,experience) %>% 
+  gt()
+```
+
+
+\textcolor{blue}{\section{Base de donnéé}}
+
+
+```{r}
+Data_USA <- read_excel("Data_MCA.xlsx") 
+Data_USA %>% 
+  gt() %>% 
+  tab_header(title =md("**Data_USA**"),subtitle = md("Une base de donnée reprensatant les caracteristiquues de certains individis au USA")) %>% 
+  tab_source_note("Source : ")
+Data_USA %>% 
+  names()
+```
+
+
+
+
+
+\textcolor{blue}{\subsection{La fonction tabyl() de janitor}} 
+
+Un aperçu de table()
+```{r}
+table(Data_USA$pid3)
+```
+
+\textcolor{blue}{Tableau de contingence} 
+```{r}
+table(Data_USA$gender,Data_USA$pid3)
+```
+
+\textcolor{blue}{\subsection{janitor : : tabyl()}}
+```{r}
+Data_USA %>% 
+  janitor::tabyl(pid3) %>% 
+  gt(rowname_col ="pid3" ) %>% 
+   tab_header(title =md("**Tableau des effectifs**"))
+```
+
+\textcolor{blue}{Tableau de contingence}
+```{r}
+Data_USA %>% 
+  janitor:: tabyl(gender,pid3) %>% 
+  gt("gender") %>% 
+  tab_header(title =md("**Tableau de contingence : Genre & Part_politique**"))
+```
+
+
+```{r}
+Data_USA %>% 
+  janitor:: tabyl(gender,pid3) %>%
+  knitr:: kable()
+```
+
+
+
+\textcolor{blue}{Selection de colonne}
+
+\textcolor{blue}{table()}
+```{r eval=FALSE, include=TRUE}
+table(Data_USA$gender,Data_USA$pid3)$Independent
+# Cette syntaxe nous retourne une erreur
+```
+
+\textcolor{blue}{tabyl()}
+```{r}
+tabyl(Data_USA,gender,pid3)$Independent
+```
+
+
+```{r}
+Data_USA %>% 
+  janitor:: tabyl(gender,pid3,marstat ) 
+```
+
+\textcolor{blue}{\subsection{ La fonction adorn{\_}pct{\_}formatting()}}
+
+```{r}
+Data_USA %>% 
+  janitor::tabyl(pid3) %>%
+  janitor::adorn_pct_formatting(digits = 0, affix_sign = TRUE) %>% 
+  gt(rowname_col ="pid3")
+```
+
+\newpage
+
+\textcolor{blue}{\subsection{ La fonction adorn{\_}totals()}}
+```{r}
+# total des lignes, par defaut
+Data_USA %>% 
+  janitor::tabyl(gender,pid3 ) %>%
+  janitor::adorn_totals() %>% 
+  gt(rowname_col ="gender")
+```
+
+```{r}
+Data_USA %>% 
+  janitor::tabyl(gender,pid3 ) %>%
+  janitor::adorn_totals(where = c("row","col"))%>% 
+  gt(rowname_col ="gender") %>% 
+  tab_header(title =md("**Tableau de contingence**"))
+```
+
+\newpage
+
+\textcolor{blue}{\subsection{La fonction adorn{\_}title()}}
+
+```{r}
+Data_USA %>% 
+  janitor::tabyl(gender,pid3 ) %>%
+  janitor::adorn_totals(where = c("row","col"))%>% 
+  janitor::adorn_title(
+    row_name = "Gender",
+    col_name = "P_poli",
+    placement = "combined") %>% 
+  gt(rowname_col ="gender") %>% 
+  tab_header(title =md("**Tableau de contingence**"))
+```
+
+\newpage
+
+\textcolor{blue}{\subsection{La fonction adorn{\_}percentages()}}
+```{r}
+
+Data_USA %>% 
+  janitor::tabyl(religpew,pid3 ) %>%
+  janitor::adorn_percentages("row")%>%
+  janitor::adorn_totals(where = "col")%>% 
+  janitor::adorn_title(
+    row_name = "Relig",
+    col_name = "P_poli",
+    placement = "combined") %>% 
+  gt(rowname_col ="gender") %>% 
+  tab_header(title =md("**Pourcentages par lignes**"))
+```
+\newpage 
+```{r}
+Data_USA %>% 
+  janitor::tabyl(religpew,pid3 ) %>%
+  janitor::adorn_percentages("row")%>%
+  janitor::adorn_totals(where = c("row","col"))%>% 
+  janitor::adorn_pct_formatting(digits = 0, affix_sign = TRUE) %>%
+  janitor::adorn_title(
+    row_name = "Relig",
+    col_name = "P_poli",
+    placement = "combined") %>% 
+  gt() %>% 
+  tab_header(title =md("**TABLEAU DE CONTINGENCE**"))
+```
+
+\newpage
+
+```{r}
+Data_USA %>% 
+  janitor::tabyl(inputstate,pid3 ) %>%
+  janitor::adorn_percentages("row")%>%
+  janitor::adorn_totals(where = c("row","col"))%>% 
+  janitor::adorn_pct_formatting(digits = 0, affix_sign = TRUE) %>%
+  janitor::adorn_title(
+    row_name = "Ville",
+    col_name = "P_poli",
+    placement = "combined") %>% 
+  gt(rowname_col ="gender") %>% 
+  tab_header(title =md("**TABLEAU DE CONTINGENCE**"))
+```
+
+
+
+
+
+
